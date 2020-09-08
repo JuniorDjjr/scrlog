@@ -1,0 +1,15 @@
+
+		 (c) 2013 - LINK/2012 - <dma_2012@hotmail.com>
+
+		 Permission is hereby granted, free of charge, to any person obtaining a copy
+		 of this plugin and source code, to copy, modify, merge, publish and/or distribute
+		 as long as you leave the original credits (above copyright notice)
+		 together with your derived work. Please not you are NOT permited to sell or get money from it
+
+		 THE SOFTWARE AND SOURCE CODE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+		 EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+		 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+		 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+		 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+		 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+		 THE SOFTWARE.

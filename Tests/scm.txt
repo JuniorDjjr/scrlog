@@ -1,0 +1,164 @@
+// Converted from BW`s Totally_stripped.txt
+// DEFINE OBJECTS 0 // no needed at all
+DEFINE MISSIONS 1
+DEFINE MISSION 0 AT @MISSION_X
+
+//-------------MAIN---------------
+script_name 'MAIN'
+ var
+  $PLAYER_CHAR: Player 
+ end // var
+do_fade 0  0 ms
+01F0: set_max_wanted_level_to 6
+0111: set_wb_check_to 0
+00C0: set_current_time 12 0
+04E4: unknown_refresh_game_renderer_at 468.7745 -1298.6228 
+Camera.SetAtPos(468.7745, -1298.6228, 11.0712)
+$PLAYER_CHAR = Player.Create(#NULL, 468.7745, -1298.6228, 11.0712)
+$PLAYER_ACTOR = Actor.EmulateFromPlayer($PLAYER_CHAR)
+01B6: set_weather 0
+wait 0 ms                  
+0180: set_on_mission_flag_to $ONMISSION // Note: your missions should use the variable defined here ($ONMISSION)
+if
+  NOT Actor.Dead($PLAYER_ACTOR)
+then
+  0352: set_actor $PLAYER_ACTOR skin_to 'PLAYER'
+  038B: load_requested_models
+  0353: refresh_actor $PLAYER_ACTOR
+end
+do_fade 1 (out)  1 ms
+if
+  $PLAYER_CHAR.Defined
+then
+  04BB: select_interior 0  // select render area
+  $PLAYER_CHAR.CanMove = True
+  01B7: release_weather
+end
+// put your create_thread commands here
+
+WAIT 500
+START_NEW_SCRIPT @SCRIPT_X
+LOAD_AND_LAUNCH_MISSION 0 
+TERMINATE_THIS_SCRIPT
+// put your mods (threads) here
+
+:SCRIPT_X
+{$VERSION 2.0.1000}         // Deji's GTAG Opcode Database definitions
+CONST
+    magic_key = 84  // T
+    scplayer  = $PLAYER_ACTOR
+    v0        = 0@
+    v1        = 1@
+    v2        = 2@
+    v3        = 3@
+    v4        = 4@
+    s5        = 5@v
+    v10       = 10@
+    v11       = 11@
+    v15       = 15@
+    IS_SAN    = 9@
+END
+
+// Test script name
+SCRIPT_NAME 'SCNAME'
+
+IS_SAN = FALSE
+v10 = 10
+v11 = 11
+v15 = 15
+
+WHILE TRUE
+    WAIT 0
+    
+    // Test string collection
+    PRINT_NOW 'AMBUL_M' 1000 0
+    
+    GOSUB @SUB_SET
+    
+    // Test float collection
+    v0 = 1.0
+    GENERATE_RANDOM_FLOAT_IN_RANGE v0 100.0 v1
+
+    IF IS_SAN == TRUE
+    THEN    
+        // Test array
+        v0 = 0.0
+        v1 = 10.0
+        v2 = 0
+        v3 = 1
+        GENERATE_RANDOM_FLOAT_IN_RANGE 0@(v2,1f) 0@(v3,1i) v1
+    END
+    
+    GOSUB @SUB_SET
+        
+    // Test integer collection
+    v0 = 1
+    GENERATE_RANDOM_INT_IN_RANGE v0 10 v1
+      
+    // Test float storing
+    GET_CHAR_COORDINATES scplayer v0 v1 v2
+    
+    // Test integer storing  
+    GET_TIME_OF_DAY v0 v1
+
+    // Test if
+    GOSUB @TEST_IF
+    
+    GOSUB @SUB_SET            
+
+    // Crash?        
+    IF IS_KEY_PRESSED magic_key
+    THEN
+        GOTO @CRASH      
+    END    
+END
+
+:TEST_IF
+v0 = 0
+IF
+v0 == 0
+GOTO_IF_FALSE @TEST_JF_1
+
+IF OR
+v0 == 0
+v0 == 1
+GOTO_IF_FALSE @TEST_JF_1
+
+IF AND
+v0 <> 0
+v0 <> 1
+GOTO_IF_FALSE @TEST_JF_1
+
+:TEST_JF_1
+
+RETURN
+
+:SUB_SET
+v0 = 7
+v1 = 8
+0085: v1 = v0
+0087: v0 = v1
+0085: v0 = v0
+v0 = -1
+0085: $PLAYER_ACTOR = $PLAYER_ACTOR
+RETURN
+
+
+:CRASH
+HEX
+    FF FF FF FF FF FF FF FF FF
+    FF FF FF FF FF FF FF FF FF
+    FF FF FF FF FF FF FF FF FF
+END
+
+
+
+//-------------Mission 0---------------
+// put your missions here
+:MISSION_X
+0000:
+WHILE TRUE
+    WAIT 0
+END
+
+
