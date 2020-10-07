@@ -11,7 +11,7 @@
  *        no func is called.
  *
  *  LICENSE:
- *		 (c) 2020 - lazyuselessman
+ *		 (c) 2020 - lazyuselessman, Junior_Djjr
  *		 (c) 2013 - LINK/2012 - <dma_2012@hotmail.com>
  *
  *		 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -56,10 +56,14 @@ static void HOOK_RegisterCollectVariablePointer();
 
 static uint32_t phAfterScriptsOriginal;
 static uint32_t phAfterScriptsRet;
+extern uint32_t pCheatString;
+extern uint32_t pScriptsProcessed;
 
 // Structure to store addresses for each version, used in CommonPatch() function
 struct CommonPatchInfo
 {
+	uint32_t pCheatString;
+	uint32_t pScriptsProcessed;
 	uint32_t phAfterScripts;
 	uint32_t phRegisterScript;
 	uint32_t phRegisterCommand;
@@ -107,11 +111,13 @@ static void CommonPatch(CommonPatchInfo& c)
 	if (SCRLog::bHookAfterScripts) {
 		ptr = c.phAfterScripts;
 		if (ptr) {
-			phAfterScriptsRet = ptr + 5;
-			phAfterScriptsOriginal = GetAbsoluteOffset(ReadMemory<uintptr_t>(ptr + 1, true), phAfterScriptsRet);
+			//phAfterScriptsRet = ptr + 5;
+			//phAfterScriptsOriginal = GetAbsoluteOffset(ReadMemory<uintptr_t>(ptr + 1, true), phAfterScriptsRet);
 			MakeCALL(ptr, &HOOK_AfterScripts);
 		}
 	}
+	pCheatString = c.pCheatString;
+	pScriptsProcessed = c.pScriptsProcessed;
 
 	if (!SCRLog::bHookOnlyRegisterScript)
 	{
@@ -172,7 +178,17 @@ static void PatchALL(bool bSteam, bool bJapanese)
 	CommonPatchInfo c;
 	unsigned int off = bSteam? -240 : bJapanese ? 880 : 0;
 
-	c.phAfterScripts = 0x4A4506; // maybe "off" isn't useful here
+	if (!bSteam && !bJapanese) { // not tested on non-1.0
+		c.phAfterScripts = 0x44FE27;
+		c.pCheatString = 0xA10942;
+		c.pScriptsProcessed = 0xA10988;
+	}
+	else {
+		c.phAfterScripts = 0;
+		c.pCheatString = 0;
+		c.pScriptsProcessed = 0;
+	}
+
 	c.phRegisterScript = 0x44FD71 + off;
 	c.phRegisterCommand = 0x44FDB5 + off;
 	c.phCollectParameters = 0x451025 + off;
@@ -211,9 +227,8 @@ void __declspec(naked) HOOK_AfterScripts()
 	_asm
 	{
 		call SCRLog::AfterScripts
-		call phAfterScriptsOriginal
-
-		push phAfterScriptsRet
+		xor al, al
+		pop ebx
 		retn
 	}
 }
@@ -302,4 +317,8 @@ void __declspec(naked) HOOK_CalledStoreParameters()
 		test di, di
 		retn
 	}
+}
+
+void VCCHudSetHelpMessage(wchar_t const *message, bool quickMessage, bool permanent) {
+	((void(__cdecl *)(wchar_t const *, bool, bool))0x55BFC0)(message, quickMessage, permanent);
 }

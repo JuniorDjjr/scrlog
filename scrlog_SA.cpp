@@ -6,6 +6,7 @@
  *       Collect global var index not hooked in DEViANCE 1.01EU
  *
  *  LICENSE:
+ *		 (c) 2020 - Junior_Djjr
  *		 (c) 2013 - LINK/2012 - <dma_2012@hotmail.com>
  *
  *		 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -74,11 +75,15 @@ static void HOOK_RegisterCollectVariablePointer();
 
 static uint32_t phAfterScriptsOriginal;
 static uint32_t phAfterScriptsRet;
+extern uint32_t pCheatString;
+extern uint32_t pScriptsProcessed;
 
 // Structure to store addresses for each version, used in CommonPatch() function
 struct CommonPatchInfo
 {
 	bool steam;
+	uint32_t pCheatString;
+	uint32_t pScriptsProcessed;
 	uint32_t phAfterScripts;
 	uint32_t phRegisterScript;
 	uint32_t phRegisterCommand;
@@ -133,11 +138,13 @@ static void CommonPatch(CommonPatchInfo& c)
 	if (SCRLog::bHookAfterScripts) {
 		ptr = c.phAfterScripts;
 		if (ptr) {
-			phAfterScriptsRet = ptr + 5;
-			phAfterScriptsOriginal = GetAbsoluteOffset(ReadMemory<uintptr_t>(ptr + 1, true), phAfterScriptsRet);
+			//phAfterScriptsRet = ptr + 5;
+			//phAfterScriptsOriginal = GetAbsoluteOffset(ReadMemory<uintptr_t>(ptr + 1, true), phAfterScriptsRet);
 			MakeCALL(ptr, &HOOK_AfterScripts);
 		}
 	}
+	pCheatString = c.pCheatString;
+	pScriptsProcessed = c.pScriptsProcessed;
 
 	if (!SCRLog::bHookOnlyRegisterScript)
 	{
@@ -215,7 +222,9 @@ static void Patch10()
 {
 	CommonPatchInfo c;
 	c.steam = false;
-	c.phAfterScripts = 0x53BFE2;
+	c.pCheatString = 0x969110;
+	c.pScriptsProcessed = 0xA447F8;
+	c.phAfterScripts = 0x469FFB; // old version: 0x53BFE2
 	c.phRegisterScript = 0x469F04;
 	c.phRegisterCommand = 0x469FB0;
 	c.phCollectParameters = 0x464089;
@@ -246,7 +255,9 @@ static void Patch11()
 {
 	CommonPatchInfo c;
 	c.steam = false;
+	c.pCheatString = 0x0;
 	c.phAfterScripts = 0x0;
+	c.pScriptsProcessed = 0x0;
 	c.phRegisterScript = 0x469F84;
 	c.phRegisterCommand = 0x46A030;
 	c.phCollectParameters = 0x464109;
@@ -276,7 +287,9 @@ static void Patch30()
 {
 	CommonPatchInfo c;
 	c.steam = true;
+	c.pCheatString = 0x0;
 	c.phAfterScripts = 0x0;
+	c.pScriptsProcessed = 0x0;
 	c.phRegisterScript = 0x46F674;
 	c.phRegisterCommand = 0x46F720;
 	c.phCollectParameters = 0x469799;
@@ -317,9 +330,9 @@ void __declspec(naked) HOOK_AfterScripts()
 	_asm
 	{
 		call SCRLog::AfterScripts
-		call phAfterScriptsOriginal
-
-		push phAfterScriptsRet
+		pop esi
+		xor al, al
+		pop ebx
 		retn
 	}
 }
@@ -565,4 +578,6 @@ void __declspec(naked) HOOK_RegisterGlobalVariableIndex()
 	}
 }
 
-
+void SACHudSetHelpMessage(char const* text, bool quickMessage, bool permanent, bool addToBrief) {
+	((void(__cdecl *)(char const*, bool, bool, bool))0x588BE0)(text, quickMessage, permanent, addToBrief);
+}

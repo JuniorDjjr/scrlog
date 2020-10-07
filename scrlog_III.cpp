@@ -11,6 +11,7 @@
  *        no func is called.
  *
  *  LICENSE:
+ *		 (c) 2020 - Junior_Djjr
  *		 (c) 2013 - LINK/2012 - <dma_2012@hotmail.com>
  *
  *		 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -54,10 +55,14 @@ static void HOOK_RegisterCollectVariablePointer();
 
 static uint32_t phAfterScriptsOriginal;
 static uint32_t phAfterScriptsRet;
+extern uint32_t pCheatString;
+extern uint32_t pScriptsProcessed;
 
 // Structure to store addresses for each version, used in CommonPatch() function
 struct CommonPatchInfo
 {
+	uint32_t pCheatString;
+	uint32_t pScriptsProcessed;
 	uint32_t phAfterScripts;
 	uint32_t phRegisterScript;
 	uint32_t phRegisterCommand;
@@ -109,6 +114,8 @@ static void CommonPatch(CommonPatchInfo& c)
 			MakeCALL(ptr, &HOOK_AfterScripts);
 		}
 	}
+	pCheatString = c.pCheatString;
+	pScriptsProcessed = c.pScriptsProcessed;
 
 	if (!SCRLog::bHookOnlyRegisterScript)
 	{
@@ -160,12 +167,21 @@ static void CommonPatch(CommonPatchInfo& c)
 }
 
 
-// Al versions have the same addresses
+// All versions have the same addresses
 static void PatchALL(bool bSteam)
 {
 	CommonPatchInfo c;
 
-	c.phAfterScripts = 0x48C8FA; // not tested on non-1.0
+	if (!bSteam) { // not tested on non-1.0
+		c.phAfterScripts = 0x4394F7;
+		c.pCheatString = 0x885B90;
+		c.pScriptsProcessed = 0x95CC5E;
+	}
+	else {
+		c.phAfterScripts = 0;
+		c.pCheatString = 0;
+		c.pScriptsProcessed = 0;
+	}
 	c.phRegisterScript = 0x439441;
 	c.phRegisterCommand = 0x439485;
 	c.phCollectParameters = 0x4382E9;
@@ -204,9 +220,7 @@ void __declspec(naked) HOOK_AfterScripts()
 	_asm
 	{
 		call SCRLog::AfterScripts
-		call phAfterScriptsOriginal
-
-		push phAfterScriptsRet
+		pop ebx
 		retn
 	}
 }
@@ -286,4 +300,8 @@ void __declspec(naked) HOOK_CalledStoreParameters()
 		test di, di
 		retn
 	}
+}
+
+void IIICHudSetHelpMessage(wchar_t *message, bool quick) {
+	((void(__cdecl *)(wchar_t *, bool))0x5051E0)(message, quick);
 }

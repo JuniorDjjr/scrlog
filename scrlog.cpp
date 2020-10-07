@@ -7,7 +7,7 @@
  *       Not lightweight
  *
  *  LICENSE:
- *		 (c) 2020 - lazyuselessman
+ *		 (c) 2020 - lazyuselessman, Junior_Djjr
  *		 (c) 2013 - LINK/2012 - <dma_2012@hotmail.com>
  *
  *		 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -36,7 +36,7 @@
 #include "CRunningScript.h"
 #include "Events.h"
 #include "Shellapi.h"
-
+ 
 static GameInfo info;
 
 void init(GameInfo& info)
@@ -66,10 +66,25 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 	return TRUE;
 }
 
+uint32_t pCheatString = 0;
+uint32_t pScriptsProcessed = 0;
+std::string message;
+std::wstring messageWide;
+uint32_t lastCommand = 0;
 
 // Util functions
 namespace SCRLog
 {
+	bool TestCheat(const char* cheat)
+	{
+		char *c = (char *)pCheatString;
+		char buf[30];
+		strcpy(buf, cheat);
+		char *s = _strrev(buf);
+		if (_strnicmp(s, c, strlen(s))) return false;
+		c[0] = 0;
+		return true;
+	}
 
 	// Get this DLL directory
 	static size_t GetDLLDirectory(char* out_buf, size_t max)
@@ -153,6 +168,7 @@ namespace SCRLog
 
 	static const char szLogName[] = "scrlog.log";
 	static const char szIniName[] = "scrlog.ini";
+	static char ini[2048];
 
 
 	enum {
@@ -245,6 +261,7 @@ namespace SCRLog
 	uint32_t nCommandsOnLog;			// Number of commands currently on the log file
 	uint32_t nScriptsOnLog;			    // Number of scripts currently on the log file
 	int32_t  nHighestCommand = 0x0B20;	// Highest command used.
+	bool     bEnabled = true;           // Easy way to toggle. Can be toggled like a cheat in-game.
 	SScriptCommand* Commands;			// Pointer to commands data... Commands[nHighestCommand+1]
 
 
@@ -397,8 +414,8 @@ namespace SCRLog
 			Flush();
 			fclose(log);
 			log = fopen(szLogName, "wb");
-			if(log == 0)
-				; // error, what to do?
+			//if(log == 0)
+				  // error, what to do?
 				  // throw and error and terminate application
 		}
 		else
@@ -678,11 +695,42 @@ namespace SCRLog
 				}
 			}
 
-
-			// Finalize all scripts log
+			// Script finalized
 			static void __stdcall AfterScripts(CRunningScript* script)
 			{
-				Log("\r\n\r\nAll scripts processed successfully. The game is processing now.\r\n");
+				if (bEnabled) Log("\r\nFinished processing.");
+				if (pCheatString) {
+					// I don't want to make another hook just to add TestCheat, so, just run it for first script.
+					// If pScriptsProcessed isn't available, fuck off this optimization for now.
+					if (pScriptsProcessed == 0x0 || *(uint32_t*)pScriptsProcessed == 1) {
+						if (TestCheat("SCRL")) {
+							bEnabled = !bEnabled;
+							WritePrivateProfileStringA("CONFIG", "ENABLED", (bEnabled) ? "TRUE" : "FALSE", ini);
+
+							if (bEnabled) message = "SCRLog is ENABLED!"; else message = "SCRLog is DISABLED!";
+
+							Log("\r\n\r\n");
+							Log(&message[0]);
+							Log("\r\n");
+
+							wchar_t* wMessage = nullptr;
+							if (info.GetGame() != info.SA) {
+								int wchars_num = MultiByteToWideChar(CP_UTF8, 0, message.c_str(), -1, NULL, 0);
+								wMessage = new wchar_t[wchars_num];
+								MultiByteToWideChar(CP_UTF8, 0, message.c_str(), -1, wMessage, wchars_num);
+							}
+
+							switch (info.GetGame())
+							{
+							case info.III: IIICHudSetHelpMessage(wMessage, 1); break;
+							case info.VC:  VCCHudSetHelpMessage(wMessage, 1, 0); break;
+							case info.SA:  SACHudSetHelpMessage(message.c_str(), 1, 0, 0); break;
+							}
+
+							if (wMessage) delete[] wMessage;
+						}
+					}
+				}
 				bProcessingScriptsNow = false;
 				scname[0] = 0;
 				lastLineBuffer[0] = 0;
@@ -691,6 +739,7 @@ namespace SCRLog
 			// Start logging script
 			static void __stdcall RegisterScript(CRunningScript* script)
 			{
+				if (!bEnabled) return;
 				int i, nVars;
 				ScriptVar* aVars;
 				char* buffer = StringBuffer;
@@ -750,6 +799,7 @@ namespace SCRLog
 		public:
 			static void __stdcall RegisterCommand()
 			{
+				if (!bEnabled) return;
 				char* ip;
 				unsigned int humanIP;
 				unsigned short command;
@@ -765,6 +815,7 @@ namespace SCRLog
 				// Get ip and command
 				ip = GetScriptIP(pRunningScript, humanIP);
 				command = *(uint16_t*)ip;
+				lastCommand = command;
 
 				//
 				Command = command & 0x7FFF;
@@ -775,26 +826,32 @@ namespace SCRLog
 
 				if(FlushTime == FLUSH_ON_COMMAND)
 					Flush();
+
+				if (lastCommand == 0xED0 /* RETURN_SCRIPT_EVENT from CLEO+ */) bProcessingScriptsNow = false;
 			}
 
 			static void __stdcall RegisterCompareFlagUpdate()
 			{
+				if (!bEnabled) return;
 				Log(StringBuffer, sprintf(StringBuffer, "  update compare flag: %s\r\n",
 					ThisCommandResult? "true" : "false"));
 			}
 
 			static void __stdcall RegisterCallToCollectParameters(unsigned short n)
 			{
+				if (!bEnabled) return;
 				Log(StringBuffer, sprintf(StringBuffer, "  collect params: %d\r\n", n));
 			}
 
 			static void __stdcall RegisterCallToCollectString()
 			{
+				if (!bEnabled) return;
 				Log("  collect string: ");
 			}
 
 			static void __stdcall RegisterCallToStoreParameters(int n)
 			{
+				if (!bEnabled) return;
 				if (!bProcessingScriptsNow)
 					return;
 
@@ -811,6 +868,7 @@ namespace SCRLog
 
 			static void __stdcall RegisterCollectionAtIndex(int n)
 			{
+				if (!bEnabled) return;
 				Log(StringBuffer, RegisterParam(StringBuffer, &CollectiveArray[n-1], n));
 
 				if(FlushTime == FLUSH_ON_COLLECT)
@@ -832,6 +890,8 @@ namespace SCRLog
 			{
 				// Let's make it safe, we can guarante str is null terminated, so let's transfer things to
 				// our buffer just in case.
+
+				if (!bEnabled) return;
 
 				if(!pRunningScript)		// III\VC hack for strncpy
 					return;
@@ -877,11 +937,13 @@ namespace SCRLog
 
 			static void __stdcall RegisterPointer(void* ptr)
 			{
+				if (!bEnabled) return;
 				Log(StringBuffer, sprintf(StringBuffer, "  collect pointer %p\r\n", ptr));
 			}
 
 			static void __stdcall RegisterGlobalVariable(int offset)
 			{
+				if (!bEnabled) return;
 				char buffer[64];
 				RegisterParamValue(buffer, (ScriptVar*)(&ScriptSpace[offset]));
 				Log(StringBuffer, sprintf(StringBuffer, "  collect global var %d: %s\r\n", offset / 4, buffer));
@@ -889,6 +951,7 @@ namespace SCRLog
 
 			static void __stdcall RegisterLocalVariable(int index)
 			{
+				if (!bEnabled) return;
 				char buffer[64]; int n; ScriptVar* var;
 				GetScriptVars(pRunningScript, var, n); 
 				Log(StringBuffer, sprintf(StringBuffer, "  collect local var %d: %s\r\n",  index, buffer));
@@ -896,6 +959,7 @@ namespace SCRLog
 
 			static void __stdcall RegisterVariable(ScriptVar* ptr)
 			{
+				if (!bEnabled) return;
 				int value;
 				switch( GetVariableOffset(pRunningScript, ptr, value) )
 				{
@@ -913,6 +977,7 @@ namespace SCRLog
 
 			static void __stdcall RegisterCommand()
 			{
+				if (!bEnabled) return;
 				static const char notArray1[2][6] = { " ", " NOT " };
 				static const char notArray2[2][6] = { "", " NOT" };
 
@@ -932,6 +997,7 @@ namespace SCRLog
 				// Get ip and command
 				ip = GetScriptIP(pRunningScript, humanIP);
 				command = *(uint16_t*)ip;
+				lastCommand = command;
 
 				//
 				Command = command & 0x7FFF;
@@ -950,6 +1016,7 @@ namespace SCRLog
 
 			static void __stdcall RegisterCompareFlagUpdate()
 			{
+				if (!bEnabled) return;
 				// Normally UpdateCompareFlag is the last thing called in a command handler
 				// If not, our log will be fucked up
 				Log(StringBuffer, sprintf(StringBuffer, "    // %s",
@@ -966,6 +1033,7 @@ namespace SCRLog
 
 			static void __stdcall RegisterCallToStoreParameters(int n)
 			{
+				if (!bEnabled) return;
 				if (!bProcessingScriptsNow)
 					return;
 
@@ -985,6 +1053,7 @@ namespace SCRLog
 
 			static void __stdcall RegisterCollectionAtIndex(int n)
 			{
+				if (!bEnabled) return;
 				if (!bProcessingScriptsNow)
 					return;
 
@@ -1008,6 +1077,8 @@ namespace SCRLog
 			{
 				// Let's make it safe, we can guarante str is null terminated, so let's transfer things to
 				// our buffer just in case.
+
+				if (!bEnabled) return;
 
 				if(!pRunningScript) // III\VC hack for strncpy
 					return;
@@ -1052,6 +1123,7 @@ namespace SCRLog
 
 			static void __stdcall RegisterPointer(void* ptr)
 			{
+				if (!bEnabled) return;
 				// We are not going to output the value of pointer, this would be dangerous
 				// Register param and ignore the output
 				ScriptVar x;
@@ -1066,6 +1138,7 @@ namespace SCRLog
 
 			static void __stdcall RegisterGlobalVariable(int offset)
 			{
+				if (!bEnabled) return;
 				// it is safe to output the var value 'cause the offset detection was based on checking
 				// the ScriptSpace bounds
 				char buffer[64];
@@ -1076,6 +1149,7 @@ namespace SCRLog
 
 			static void __stdcall RegisterLocalVariable(int index)
 			{
+				if (!bEnabled) return;
 				// it is safe to output the var value 'cause the index detection was based on checking
 				// the script->tls\MissionLocals bounds
 				char buffer[64]; int n; ScriptVar* var;
@@ -1087,6 +1161,7 @@ namespace SCRLog
 
 			static void __stdcall RegisterVariable(ScriptVar* ptr)
 			{
+				if (!bEnabled) return;
 				int value;
 				switch( GetVariableOffset(pRunningScript, ptr, value) )
 				{
@@ -1251,7 +1326,6 @@ namespace SCRLog
 	bool Open()
 	{
 		char buf[32];
-		char ini[2048];
 
 		// Open file... Use binary mode, it is faster :)
 		if( !(log = fopen(szLogName, "wb")) )
@@ -1280,6 +1354,7 @@ namespace SCRLog
 		bHookUpdateCompareFlag=GetPrivateProfileBoolA("CONFIG", "HOOK_COMP_FLAG", bHookUpdateCompareFlag, ini);
 		bHookCollectVarPointer=GetPrivateProfileBoolA("CONFIG", "HOOK_COLLECT_PTR", bHookCollectVarPointer, ini);
 		nHighestCommand		 = GetPrivateProfileIntA("CONFIG", "HIGHEST_COMMAND", nHighestCommand, ini);
+		bEnabled		     = GetPrivateProfileBoolA("CONFIG", "ENABLED", bEnabled, ini);
 
 		if (!bHookAfterScripts) {
 			bShowCrashWindow = false; // dependency...
@@ -1348,6 +1423,11 @@ namespace SCRLog
 		BuildFactory();
 		bOpened = true;
 
+		if (!bEnabled) {
+			Log("SCRLog is DISABLED!");
+			Flush(true);
+		}
+
 		return true;
 	}
 	
@@ -1362,7 +1442,8 @@ namespace SCRLog
 			{
 				Flush(true);
 
-				if (bShowCrashWindow) {
+				// Exclude some commands, like WAIT, don't need to be accurated, this may never occur, but just to make it safer
+				if (bShowCrashWindow && lastCommand != 0x001 && lastCommand != 0xA93 && lastCommand != 0xABA && lastCommand != 0x04E && lastCommand != 0x459 && lastCommand != 0xED0) {
 					int len = strnlen_s(scname, 8);
 					if (len > 0 && len < 8) {
 

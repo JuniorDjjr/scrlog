@@ -28,6 +28,10 @@ extern void III_Patch(GameInfo& info);
 extern void VC_Patch(GameInfo& info);
 extern void SA_Patch(GameInfo& info);
 
+extern void SACHudSetHelpMessage(char const* text, bool quickMessage, bool permanent, bool addToBrief);
+extern void VCCHudSetHelpMessage(wchar_t const *message, bool quickMessage, bool permanent);
+extern void IIICHudSetHelpMessage(wchar_t *message, bool quick);
+
 namespace SCRLog
 {
 	// Open or Close SCRLog
